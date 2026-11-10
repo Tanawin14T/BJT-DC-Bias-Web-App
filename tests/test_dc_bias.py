@@ -73,5 +73,17 @@ class TestParseInputs(unittest.TestCase):
         self.assertEqual(set(errors), {"r1", "beta", "vcc"})
 
 
+class TestParameterRangeWarnings(unittest.TestCase):
+    def test_vbe_outside_typical_range_warns(self):
+        for vbe in (0.4, 1.0):
+            r = calculate(DcBiasInput(vcc=12.0, r1=100.0, r2=22.0, rc=2.2, re=1.0, beta=100.0, vbe=vbe))
+            self.assertTrue(any("VBE" in w for w in r.warnings), msg=f"vbe={vbe} should warn")
+
+    def test_vbe_inside_typical_range_does_not_warn(self):
+        for vbe in (0.5, 0.9):
+            r = calculate(DcBiasInput(vcc=12.0, r1=100.0, r2=22.0, rc=2.2, re=1.0, beta=100.0, vbe=vbe))
+            self.assertFalse(any("VBE" in w for w in r.warnings), msg=f"vbe={vbe} should not warn")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -90,11 +90,16 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
     vth = vcc * r2 / (r1 + r2)
     rth = r1 * r2 / (r1 + r2)
 
-    beta_warning = ()
+    param_warnings: tuple[str, ...] = ()
     if beta > 1000.0 or beta < 10.0:
-        beta_warning = (
+        param_warnings += (
             f"β = {beta:g} อยู่นอกช่วง 10–1000 ที่แบบจำลองคงที่เหมาะกับงานออกแบบทั่วไป "
             "ผลลัพธ์อาจคลาดเคลื่อนจากของจริง",
+        )
+    if vbe < 0.5 or vbe > 0.9:
+        param_warnings += (
+            f"VBE = {vbe:g} V อยู่นอกช่วง 0.5–0.9 V ของรอยต่อ forward-biased จริง — "
+            "ผลลัพธ์ไม่ควรใช้ตัดสินการทำงานของวงจรจริง",
         )
 
     if vth <= vbe:
@@ -113,7 +118,7 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
                 "Cutoff: VTH ≤ VBE ทำให้ไม่มีกระแสเบสไหล — "
                 "แบบจำลอง Forward Active ใช้ไม่ได้ในโหมดนี้",
             )
-            + beta_warning,
+            + param_warnings,
         )
 
     ib = (vth - vbe) / (rth + (beta + 1.0) * re)
@@ -141,7 +146,7 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
                 f"Saturation: VCE ≤ {VCE_SAT:g} V — สมการ IC = β·IB ใช้ไม่ได้ในโหมดนี้ "
                 f"กระแสอิ่มตัวสูงสุดประมาณ IC,max ≈ {ic_max_ma:.2f} mA",
             )
-            + beta_warning,
+            + param_warnings,
         )
 
     return DcBiasResult(
@@ -155,5 +160,5 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
         vc=vc,
         vce=vce,
         region="Forward Active",
-        warnings=beta_warning,
+        warnings=param_warnings,
     )
