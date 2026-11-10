@@ -47,6 +47,36 @@ class DcBiasResult:
     warnings: tuple[str, ...]
 
 
+def parse_inputs(raw: Mapping[str, str]) -> tuple[DcBiasInput | None, dict[str, str]]:
+    """Convert raw form strings into a DcBiasInput, or report per-field errors."""
+    errors: dict[str, str] = {}
+    values: dict[str, float] = {}
+
+    for name in FIELDS:
+        text = (raw.get(name) or "").strip()
+        if not text:
+            errors[name] = "กรุณากรอกตัวเลข"
+            continue
+        try:
+            value = float(text)
+        except ValueError:
+            errors[name] = "กรุณากรอกตัวเลข"
+            continue
+        if not math.isfinite(value):
+            errors[name] = "กรุณากรอกตัวเลข"
+            continue
+        values[name] = value
+
+    for name in FIELDS:
+        if name not in errors and values[name] <= 0.0:
+            errors[name] = "ต้องมากกว่า 0"
+
+    if errors:
+        return None, errors
+
+    return DcBiasInput(**values), {}
+
+
 def calculate(inp: DcBiasInput) -> DcBiasResult:
     """Compute the DC operating point under the fixed-beta forward-active model."""
     vcc = inp.vcc

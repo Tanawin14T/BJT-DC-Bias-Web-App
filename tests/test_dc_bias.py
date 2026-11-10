@@ -1,6 +1,6 @@
 import unittest
 
-from dc_bias import DcBiasInput, calculate
+from dc_bias import DcBiasInput, calculate, parse_inputs
 
 REF = DcBiasInput(vcc=12.0, r1=100.0, r2=22.0, rc=2.2, re=1.0, beta=100.0, vbe=0.70)
 
@@ -40,6 +40,37 @@ class TestRegionHandling(unittest.TestCase):
         r = calculate(DcBiasInput(vcc=12.0, r1=100.0, r2=22.0, rc=2.2, re=1.0, beta=5.0, vbe=0.70))
         self.assertGreater(r.ib_ua, 0.0)
         self.assertTrue(any("β" in w for w in r.warnings))
+
+
+GOOD = {"vcc": "12", "r1": "100", "r2": "22", "rc": "2.2", "re": "1", "beta": "100", "vbe": "0.7"}
+
+
+class TestParseInputs(unittest.TestCase):
+    def test_accepts_valid_strings(self):
+        inp, errors = parse_inputs(GOOD)
+        self.assertEqual(errors, {})
+        self.assertIsNotNone(inp)
+        self.assertAlmostEqual(inp.r1, 100.0)
+
+    def test_rejects_non_numeric_and_blank(self):
+        raw = dict(GOOD, vcc="abc", r1="")
+        inp, errors = parse_inputs(raw)
+        self.assertIsNone(inp)
+        self.assertIn("vcc", errors)
+        self.assertIn("r1", errors)
+
+    def test_rejects_non_finite(self):
+        raw = dict(GOOD, rc="nan", re="inf")
+        inp, errors = parse_inputs(raw)
+        self.assertIsNone(inp)
+        self.assertIn("rc", errors)
+        self.assertIn("re", errors)
+
+    def test_rejects_non_positive(self):
+        raw = dict(GOOD, r1="0", beta="0", vcc="-12")
+        inp, errors = parse_inputs(raw)
+        self.assertIsNone(inp)
+        self.assertEqual(set(errors), {"r1", "beta", "vcc"})
 
 
 if __name__ == "__main__":
