@@ -60,6 +60,32 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
     vth = vcc * r2 / (r1 + r2)
     rth = r1 * r2 / (r1 + r2)
 
+    beta_warning = ()
+    if beta > 1000.0 or beta < 10.0:
+        beta_warning = (
+            f"β = {beta:g} อยู่นอกช่วง 10–1000 ที่แบบจำลองคงที่เหมาะกับงานออกแบบทั่วไป "
+            "ผลลัพธ์อาจคลาดเคลื่อนจากของจริง",
+        )
+
+    if vth <= vbe:
+        return DcBiasResult(
+            vth=vth,
+            rth=rth / KOHM_TO_OHM,
+            ib_ua=0.0,
+            ic_ma=0.0,
+            ie_ma=0.0,
+            vb=vth,
+            ve=0.0,
+            vc=vcc,
+            vce=vcc,
+            region="Cutoff",
+            warnings=(
+                "Cutoff: VTH ≤ VBE ทำให้ไม่มีกระแสเบสไหล — "
+                "แบบจำลอง Forward Active ใช้ไม่ได้ในโหมดนี้",
+            )
+            + beta_warning,
+        )
+
     ib = (vth - vbe) / (rth + (beta + 1.0) * re)
     ic = beta * ib
     ie = (beta + 1.0) * ib
@@ -67,6 +93,26 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
     vb = ve + vbe
     vc = vcc - ic * rc
     vce = vc - ve
+
+    if vce <= VCE_SAT or vce < 0.0:
+        ic_max_ma = (vcc - VCE_SAT) / (rc + re) * 1e3
+        return DcBiasResult(
+            vth=vth,
+            rth=rth / KOHM_TO_OHM,
+            ib_ua=ib * 1e6,
+            ic_ma=ic * 1e3,
+            ie_ma=ie * 1e3,
+            vb=vb,
+            ve=ve,
+            vc=vc,
+            vce=vce,
+            region="Saturation",
+            warnings=(
+                f"Saturation: VCE ≤ {VCE_SAT:g} V — สมการ IC = β·IB ใช้ไม่ได้ในโหมดนี้ "
+                f"กระแสอิ่มตัวสูงสุดประมาณ IC,max ≈ {ic_max_ma:.2f} mA",
+            )
+            + beta_warning,
+        )
 
     return DcBiasResult(
         vth=vth,
@@ -79,5 +125,5 @@ def calculate(inp: DcBiasInput) -> DcBiasResult:
         vc=vc,
         vce=vce,
         region="Forward Active",
-        warnings=(),
+        warnings=beta_warning,
     )

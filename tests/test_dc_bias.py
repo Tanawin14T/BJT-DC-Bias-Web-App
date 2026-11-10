@@ -21,5 +21,26 @@ class TestReferenceOperatingPoint(unittest.TestCase):
         self.assertEqual(r.warnings, ())
 
 
+class TestRegionHandling(unittest.TestCase):
+    def test_cutoff_when_vth_below_vbe(self):
+        r = calculate(DcBiasInput(vcc=12.0, r1=100.0, r2=1.0, rc=2.2, re=1.0, beta=100.0, vbe=0.70))
+        self.assertEqual(r.region, "Cutoff")
+        self.assertEqual(r.ic_ma, 0.0)
+        self.assertEqual(r.ie_ma, 0.0)
+        self.assertEqual(r.ve, 0.0)
+        self.assertAlmostEqual(r.vc, 12.0, places=6)
+        self.assertTrue(any("Cutoff" in w for w in r.warnings))
+
+    def test_saturation_when_rc_too_large(self):
+        r = calculate(DcBiasInput(vcc=12.0, r1=100.0, r2=22.0, rc=10.0, re=0.1, beta=100.0, vbe=0.70))
+        self.assertEqual(r.region, "Saturation")
+        self.assertTrue(any("Saturation" in w for w in r.warnings))
+
+    def test_low_beta_still_calculates_with_warning(self):
+        r = calculate(DcBiasInput(vcc=12.0, r1=100.0, r2=22.0, rc=2.2, re=1.0, beta=5.0, vbe=0.70))
+        self.assertGreater(r.ib_ua, 0.0)
+        self.assertTrue(any("β" in w for w in r.warnings))
+
+
 if __name__ == "__main__":
     unittest.main()
