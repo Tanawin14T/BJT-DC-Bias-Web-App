@@ -64,6 +64,11 @@ VCC = 12 V, R1 = 100 kΩ, R2 = 22 kΩ, RC = 2.2 kΩ, RE = 1 kΩ, β = 100, VBE =
 
 การคำนวณมือทีละขั้นอยู่ใน [`docs/validation.md`](docs/validation.md)
 
+## หลักฐานการทดสอบ
+
+- ภาพหน้าจอผลการคำนวณ: [`docs/screenshots/dc-bias-result.jpg`](docs/screenshots/dc-bias-result.jpg)
+- บันทึกผลรันเทสต์ (13 tests): [`docs/test-log.txt`](docs/test-log.txt)
+
 ## ข้อจำกัดของแบบจำลอง
 
 - ใช้ Forward-Active approximation: VBE คงที่ และ β คงที่ ไม่ขึ้นกับ IC หรืออุณหภูมิ

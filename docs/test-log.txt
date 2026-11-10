@@ -1,0 +1,33 @@
+﻿ENG29 2121 - Lab 02 - Test Log
+Date   : 2026-11-10 17:56:20 +07:00
+Python : Python 3.14.2
+Flask  : 3.1.2
+Command: python -m unittest discover -s tests -v
+--------------------------------------------------------------------
+python.exe : test_vbe_inside_typical_range_does_not_warn 
+(test_dc_bias.TestParameterRangeWarnings.test_vbe_inside_typical_range_does_not_warn) ... ok
+At line:1 char:527
++ ... 68); $run = & .\.venv\Scripts\python.exe -m unittest discover -s test ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_vbe_inside...ot_warn) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_vbe_outside_typical_range_warns (test_dc_bias.TestParameterRangeWarnings.test_vbe_outside_typical_range_warns) 
+... ok
+test_accepts_valid_strings (test_dc_bias.TestParseInputs.test_accepts_valid_strings) ... ok
+test_rejects_non_finite (test_dc_bias.TestParseInputs.test_rejects_non_finite) ... ok
+test_rejects_non_numeric_and_blank (test_dc_bias.TestParseInputs.test_rejects_non_numeric_and_blank) ... ok
+test_rejects_non_positive (test_dc_bias.TestParseInputs.test_rejects_non_positive) ... ok
+test_reference_operating_point (test_dc_bias.TestReferenceOperatingPoint.test_reference_operating_point) ... ok
+test_cutoff_when_vth_below_vbe (test_dc_bias.TestRegionHandling.test_cutoff_when_vth_below_vbe) ... ok
+test_low_beta_still_calculates_with_warning 
+(test_dc_bias.TestRegionHandling.test_low_beta_still_calculates_with_warning) ... ok
+test_saturation_when_rc_too_large (test_dc_bias.TestRegionHandling.test_saturation_when_rc_too_large) ... ok
+test_get_index_returns_form (test_web.TestWeb.test_get_index_returns_form) ... ok
+test_post_calculate_shows_result (test_web.TestWeb.test_post_calculate_shows_result) ... ok
+test_post_invalid_shows_error (test_web.TestWeb.test_post_invalid_shows_error) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.100s
+
+OK
