@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJT DC Bias Calculator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">ENG29 2121 · Lab 02</p>
+    <h1>BJT DC Bias Calculator</h1>
+    <p class="sub">Common-Emitter · Voltage-Divider Bias · Forward-Active model (β คงที่, V<sub>BE</sub> คงที่)</p>
+  </header>
+
+  <form method="post" action="/calculate" novalidate>
+    <div class="grid">
+      <label>VCC (V)
+        <input type="text" inputmode="decimal" name="vcc" value="{{ form.vcc }}">
+        {% if errors.vcc %}<span class="err">{{ errors.vcc }}</span>{% endif %}
+      </label>
+      <label>R1 (kΩ)
+        <input type="text" inputmode="decimal" name="r1" value="{{ form.r1 }}">
+        {% if errors.r1 %}<span class="err">{{ errors.r1 }}</span>{% endif %}
+      </label>
+      <label>R2 (kΩ)
+        <input type="text" inputmode="decimal" name="r2" value="{{ form.r2 }}">
+        {% if errors.r2 %}<span class="err">{{ errors.r2 }}</span>{% endif %}
+      </label>
+      <label>RC (kΩ)
+        <input type="text" inputmode="decimal" name="rc" value="{{ form.rc }}">
+        {% if errors.rc %}<span class="err">{{ errors.rc }}</span>{% endif %}
+      </label>
+      <label>RE (kΩ)
+        <input type="text" inputmode="decimal" name="re" value="{{ form.re }}">
+        {% if errors.re %}<span class="err">{{ errors.re }}</span>{% endif %}
+      </label>
+      <label>β
+        <input type="text" inputmode="decimal" name="beta" value="{{ form.beta }}">
+        {% if errors.beta %}<span class="err">{{ errors.beta }}</span>{% endif %}
+      </label>
+      <label>VBE (V)
+        <input type="text" inputmode="decimal" name="vbe" value="{{ form.vbe }}">
+        {% if errors.vbe %}<span class="err">{{ errors.vbe }}</span>{% endif %}
+      </label>
+      <div class="actions">
+        <button type="submit">Calculate DC Bias</button>
+      </div>
+    </div>
+  </form>
+
+  {% if result %}
+    {% set tone = 'ok' if result.region == 'Forward Active' else ('warn' if result.region == 'Saturation' else 'bad') %}
+    <section class="result">
+      <div class="status {{ tone }}">
+        <strong>{{ result.region }}</strong>
+        {% if result.region == 'Forward Active' %}
+          — วงจรอยู่ในช่วง Forward Active ตามสมมติฐาน
+        {% endif %}
+      </div>
+
+      {% for w in result.warnings %}
+        <p class="warning">{{ w }}</p>
+      {% endfor %}
+
+      <table>
+        <caption>DC Operating Point</caption>
+        <thead>
+          <tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V<sub>B</sub></td><td>{{ "%.3f"|format(result.vb) }}</td><td>V</td></tr>
+          <tr><td>V<sub>E</sub></td><td>{{ "%.3f"|format(result.ve) }}</td><td>V</td></tr>
+          <tr><td>V<sub>C</sub></td><td>{{ "%.3f"|format(result.vc) }}</td><td>V</td></tr>
+          <tr><td>V<sub>CE</sub></td><td>{{ "%.3f"|format(result.vce) }}</td><td>V</td></tr>
+          <tr><td>I<sub>C</sub></td><td>{{ "%.3f"|format(result.ic_ma) }}</td><td>mA</td></tr>
+          <tr><td>I<sub>B</sub></td><td>{{ "%.2f"|format(result.ib_ua) }}</td><td>µA</td></tr>
+          <tr><td>I<sub>E</sub></td><td>{{ "%.3f"|format(result.ie_ma) }}</td><td>mA</td></tr>
+          <tr class="extra"><td>V<sub>TH</sub></td><td>{{ "%.3f"|format(result.vth) }}</td><td>V</td></tr>
+          <tr class="extra"><td>R<sub>TH</sub></td><td>{{ "%.3f"|format(result.rth) }}</td><td>kΩ</td></tr>
+        </tbody>
+      </table>
+      <p class="note">ผลนี้มาจากแบบจำลอง Forward-Active ไม่ใช่การจำลอง SPICE — ใช้ตรวจงานออกแบบเบื้องต้นเท่านั้น</p>
+    </section>
+  {% endif %}
+</main>
+<footer>ENG29 2121 · Lab 02 · Flask + Python backend</footer>
+</body>
+</html>
