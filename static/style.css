@@ -72,7 +72,8 @@ label {
   color: var(--navy);
 }
 
-input {
+input,
+select {
   padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -82,9 +83,74 @@ input {
   background: #fbfdff;
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: 2px solid #9cc4e0;
   outline-offset: 1px;
+}
+
+.mode-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mode-label {
+  display: inline;
+  white-space: nowrap;
+}
+
+.mode-bar select {
+  min-width: 210px;
+}
+
+.mode-bar .secondary {
+  width: auto;
+  padding: 9px 14px;
+  background: #e6f1fa;
+  color: var(--navy);
+  font-size: 14px;
+}
+
+.mode-bar .secondary:hover {
+  background: #d5e7f6;
+}
+
+body[data-mode="fixed"] label:not([data-only~="fixed"]),
+body[data-mode="emitter"] label:not([data-only~="emitter"]),
+body[data-mode="divider"] label:not([data-only~="divider"]) {
+  display: none;
+}
+
+.mode-result {
+  margin: 0 0 10px;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+select.unit {
+  flex: 0 0 76px;
+  width: 76px;
+  padding: 9px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  background: #eaf2f8;
 }
 
 .err {

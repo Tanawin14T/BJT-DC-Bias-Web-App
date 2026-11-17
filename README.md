@@ -1,11 +1,18 @@
-# BJT DC Bias Web App — ENG29 2121 Lab 02
+# BJT DC Bias Web App — ENG29 2121 Lab 03
 
 Flask web application ที่คำนวณ DC operating point ของวงจร BJT Common-Emitter
-แบบ Voltage-Divider Bias ด้วยแบบจำลอง Forward-Active (β คงที่, V<sub>BE</sub> คงที่)
+สามแบบ ด้วยแบบจำลอง Forward-Active (β คงที่, V<sub>BE</sub> คงที่)
 
-- อินพุต: `VCC` [V], `R1`, `R2`, `RC`, `RE` [kΩ], `β`, `VBE` [V]
-- เอาต์พุต: `VB`, `VE`, `VC`, `VCE` [V], `IC` [mA], `IB` [µA], `IE` [mA]
-  พร้อม `VTH`, `RTH` และสถานะการทำงาน (Forward Active / Cutoff / Saturation)
+| โหมด | อินพุตที่ใช้ | สมการกระแสเบส |
+|------|-------------|----------------|
+| `Fixed Bias` | `VCC`, `RB`, `RC`, `β`, `VBE` | `IB = (VCC − VBE) / RB` (Emitter ต่อกราวด์, `VE = 0`) |
+| `Emitter Bias` | `VCC`, `RB`, `RC`, `RE`, `β`, `VBE` | `IB = (VCC − VBE) / [RB + (β+1)RE]` |
+| `Voltage Divider Bias` | `VCC`, `R1`, `R2`, `RC`, `RE`, `β`, `VBE` | `IB = (VTH − VBE) / [RTH + (β+1)RE]` |
+
+ความต้านทานแต่ละช่องเลือกหน่วยได้ **Ω / kΩ / MΩ** (ค่าเริ่มต้น kΩ) โปรแกรมแปลงเป็น kΩ ก่อนส่งเข้า `dc_bias.py` (ตารางผลแสดง RTH เป็น Ω/kΩ/MΩ อัตโนมัติ) ผลลัพธ์: `VB`, `VE`, `VC`, `VCE` [V],
+`IC` [mA], `IB` [µA], `IE` [mA] พร้อม `VTH`, `RTH` และสถานะการทำงาน
+(Forward Active / Cutoff / Saturation) เลือกโหมดจาก dropdown บนฟอร์ม —
+ช่องที่ไม่เกี่ยวข้องจะถูกซ่อน และโหมด Divider ให้ผลเหมือน Lab 2 ทุกประการ
 
 ## โครงสร้างไฟล์
 
@@ -43,7 +50,7 @@ python -m flask --app app run --debug
 python -m unittest discover -s tests -v
 ```
 
-ผลที่คาดหวัง: 11 tests ผ่านทั้งหมด (8 tests ด้านวิศวกรรม + 3 tests ด้าน HTTP)
+ผลที่คาดหวัง: 13 tests ผ่านทั้งหมด (ชุดทดสอบ Lab 2 เดิมยังใช้ตรวจโหมด Divider ได้)
 
 ## ค่าตัวอย่างและผลอ้างอิง
 
