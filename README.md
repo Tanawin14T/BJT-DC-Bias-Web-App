@@ -1,4 +1,4 @@
-# BJT DC Bias Web App — ENG29 2121 Lab 03
+# BJT DC Bias Web App + CE Simulator — ENG29 2121 Lab 03/04
 
 Flask web application ที่คำนวณ DC operating point ของวงจร BJT Common-Emitter
 สามแบบ ด้วยแบบจำลอง Forward-Active (β คงที่, V<sub>BE</sub> คงที่)
@@ -18,12 +18,16 @@ Flask web application ที่คำนวณ DC operating point ของว�
 
 ```
 app.py                  Flask routes (HTTP เท่านั้น)
-dc_bias.py              การคำนวณและ validation (ไม่ import Flask)
-templates/index.html    ฟอร์ม + ตารางผลลัพธ์ (Jinja)
-static/style.css        หน้าตา
-tests/test_dc_bias.py   unit tests เชิงวิศวกรรม
+dc_bias.py              การคำนวณ DC แบบ Analytical (ไม่ import Flask)
+spice_engine.py         Lab 04: validate → netlist → subprocess ngspice → parse raw
+plots.py                Lab 04: SVG จากข้อมูลจริง (ไม่มี chart library)
+templates/index.html    ฟอร์ม Lab 03 + ฟอร์ม/ผล Lab 04 (Jinja)
+static/style.css        หน้าตา (responsive)
+tests/test_dc_bias.py   unit tests เชิงวิศวกรรม Lab 03
 tests/test_web.py       HTTP tests ด้วย Flask test client
-docs/                   validation, design note, reflection
+tests/test_spice_engine.py  netlist/parser/error-path tests (ไม่ต้องมี ngspice)
+tests/test_sim_web.py   HTTP tests ของ /simulate (stub engine)
+docs/                   validation, design note, reflection, screenshots
 ```
 
 ## ติดตั้ง
@@ -34,6 +38,12 @@ python -m venv .venv
 # macOS / Linux: source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
+
+สำหรับ Simulator ต้องมี **ngspice (โปรแกรมภายนอก ไม่ใช่ pip package)**:
+ดาวน์โหลดจาก <https://ngspice.sourceforge.io/download.html>, ติดตั้งแล้วตรวจ
+`ngspice --version` ให้ขึ้นก่อนรัน Flask ถ้า executable ไม่ได้อยู่ใน PATH ให้ตั้ง
+`$env:NGSPICE_PATH = "C:\path\to\ngspice.exe"` (Windows) หรือ `export NGSPICE_PATH=...`
+(bash) — adapter จะแจ้ง error ชัดเจนถ้าเรียก engine ไม่ได้ หรือไม่คืนกราฟเก่าเป็นผลสำเร็จ
 
 ## รันเว็บ
 
@@ -50,7 +60,7 @@ python -m flask --app app run --debug
 python -m unittest discover -s tests -v
 ```
 
-ผลที่คาดหวัง: 13 tests ผ่านทั้งหมด (ชุดทดสอบ Lab 2 เดิมยังใช้ตรวจโหมด Divider ได้)
+ผลที่คาดหวัง: 35 tests ผ่านทั้งหมด (13 tests Lab 2/3 เดิม + 22 tests ของ SPICE adapter/web)
 
 ## ค่าตัวอย่างและผลอ้างอิง
 
@@ -82,3 +92,47 @@ VCC = 12 V, R1 = 100 kΩ, R2 = 22 kΩ, RC = 2.2 kΩ, RE = 1 kΩ, β = 100, VBE =
 - ไม่ใช่ SPICE/ngspice และไม่มีผลกระทบจาก Early effect, leakage, nonlinear rπ
 - เมื่อ `VTH ≤ VBE` (Cutoff) หรือ `VCE ≤ 0.20 V` (Saturation) เว็บจะแสดงคำเตือน
   เพราะสมการ `IC = β·IB` ใช้ไม่ได้ในโหมดเหล่านั้น
+
+## Lab 04 — CE Amplifier Simulator (ngspice)
+
+ส่วนนี้ต่อยอดจาก Lab 3 **โดยไม่ลบ DC Bias ทั้ง 3 แบบ** ฟอร์มด้านล่างของหน้าเว็บ
+(`#simulator`) ส่งพารามิเตอร์ที่ตรวจแล้วไปยัง `spice_engine.py` ซึ่งสร้าง netlist
+ของวงจร CE Voltage Divider อ้างอิงแล้วเรียก ngspice แบบ Batch ผ่าน
+`subprocess.run([...], cwd=<tempdir>, timeout=30)` (ไม่ใช้ `shell=True`) และอ่าน
+`run.raw` ที่ engine เขียนจริง
+
+| Analysis | คำสั่ง | ผลที่แสดง |
+|----------|--------|-----------|
+| DC | `.op` | VB, VE, VC, VCE, IC (อ่านจาก `v(vb)`, `v(e)`, `v(c)`, `i(vic)`) |
+| AC | `.ac dec N fstart fstop` | Bode: Gain = \|Vout(out)/Vin(vb)\| [dB], Phase [deg] พร้อม f3dB หรือข้อความว่าไม่พบในช่วง sweep |
+| Transient | `.tran stop step` | Vin(vb)/Vout(out) ตามเวลา [ms], peak, Gain estimate และทิศทางเฟส |
+
+**Input fixture ตั้งต้น:** VCC 12 V · R1 100 kΩ · R2 22 kΩ · RC 2.2 kΩ ·
+RE 1 kΩ · RL 10 kΩ · Cin = Cout = 10 µF · source 10 mV peak @ 1 kHz ·
+BJT model `QCE_GENERIC` = `NPN(IS=1E-14 BF=200 VAF=100 RB=10 CJC=3.5P CJE=8P TF=400P)`
+(โมเดล generic ที่ระบุพารามิเตอร์ไว้ใน `spice_engine.py` ไม่ได้อ้างรุ่นเฉพาะ —
+เปลี่ยนตาม Starter Kit ของผู้สอนได้ที่จุดเดียว) **ไม่มี Emitter bypass capacitor**
+ใน baseline ตามใบงาน
+
+**ที่มาของผล (provenance):** หน้าผลแสดง engine, status, model และ netlist/log
+จากรันนั้น ผล Analytical จาก `dc_bias.py` ยังอยู่แยกต่างหากในส่วน Lab 03 —
+ตัวเลขสองชุดนี้มีสมมติฐานต่างกัน (β/VBE คงที่ vs BJT model ของ SPICE) จึงไม่บังคับให้เท่ากัน
+หาก ngspice หาย, รันfailed, timeout หรือ raw ว่าง หน้าเว็บจะแสดง error และจะไม่แสดง
+กราฟ/ผลสำเร็จปลอม
+
+**ข้อจำกัดในสภาพแวดล้อมที่พัฒนา:** เครื่องที่ใช้แก้โค้ดไม่มี `ngspice.exe`
+จึงทดสอบ adapter ด้วย raw file สังเคราะห์ใน `tests/test_spice_engine.py` และบันทึก
+B2–B6 ของการรันจริงเป็น `NOT RUN` ใน [`docs/validation.md`](docs/validation.md)
+อย่างตรงไปตรงมา หลังติดตั้ง ngspice ผู้ใช้สามารถรันคำสั่งด้านบนแล้วกด
+**Run Simulation** เพื่อดูผลจริงได้ทันที
+
+## สิ่งที่ AI แก้ vs สิ่งที่ตรวจเอง
+
+- AI (OpenCode) เพิ่ม `spice_engine.py`, `plots.py`, route `/simulate`, UI และ tests
+  ตามข้อกำหนด Lab 04 โดยคง `dc_bias.py`, ฟอร์ม Lab 03 และ tests เดิมไว้ครบ
+- ผู้ใช้ตรวจ/อนุมัติขอบเขตงาน เลือกแนวทาง "adapter + NOT RUN" เมื่อไม่มี ngspice
+  และยืนยันให้ commit/push ขึ้น `main`
+- ผลคำนวณ Lab 03 เทียบมือแล้วใน `docs/validation.md`; หน้าเว็บตรวจใน browser จริง
+  (B1, B7, engine-missing) จากนั้นดูผลการรันจริงในเครื่องที่มี ngspice
+- หลักฐาน status และ screenshot อยู่ใน `docs/validation.md` และ
+  `docs/screenshots/lab04-engine-error-desktop.png`

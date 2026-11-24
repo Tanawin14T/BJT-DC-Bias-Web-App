@@ -149,3 +149,62 @@ IC = 0.940100 mA · VE = 1.89900 V · VCE = 9.93178 − 1.89900 = 8.03278 V
 - ค่าอ้างอิงใน `README.md`, `tests/test_dc_bias.py` และผลบนหน้าจอตรงกับการคำนวณมือชุดเดียวกัน
 - โปรแกรม **ไม่ตรวจ** ความถูกต้องทางกายภาพของค่าอุปกรณ์ (เช่น กำลัง dissipate จริง
   หรือพิกัดของทรานซิสเตอร์) — เป็นหน้าที่ผู้ออกแบบ
+
+---
+
+# Lab 04 — CE Amplifier Simulator (ngspice)
+
+## สภาพแวดล้อมที่ใช้ตรวจ
+
+| รายการ | ค่าที่พบจริง |
+|--------|-------------|
+| Python | 3.14.2 |
+| Flask | 3.1.2 (จาก `requirements.txt`) |
+| ngspice version | **ไม่มี executable ในเครื่องนี้** (`where ngspice` ไม่พบ) → ผลจำลองจริง **NOT RUN** |
+| BJT model | `QCE_GENERIC` = `NPN(IS=1E-14 BF=200 VAF=100 RB=10 CJC=3.5P CJE=8P TF=400P)` ตั้งค่าคงที่ใน `spice_engine.py` (generic ไม่ได้อ้างรุ่นจริง) |
+| Vin reference | วัดที่ node `vb` (ฐาน หลัง C_in) |
+| Vout reference | วัดที่ node `out` (หลัง C_out บน R_L) |
+
+การตรวจ adapter ใช้ raw file สังเคราะห์ใน `tests/test_spice_engine.py` เท่านั้น
+**ไม่ได้นำตัวเลขจาก raw สังเคราะห์ไปแสดงว่าเป็นผล ngspice จริง** บนหน้าเว็บ
+
+## ผลทดสอบอัตโนมัติ
+
+```
+python -m unittest discover -s tests -v
+→ Ran 35 tests ... OK
+```
+
+แบ่งเป็น 13 tests เดิม (Lab 2/3) + 22 tests ใหม่ (netlist, validation, raw parser,
+engine missing, nonzero exit, empty raw, timeout, subprocess argument shape,
+HTTP success/error/invalid ของ `/simulate`)
+
+## ตาราง B1–B8 (ตรวจจาก browser จริงเท่าที่เครื่องรองรับ)
+
+| Case | Method | Input | Expected / Reference | Observed | Evidence | Status |
+|------|--------|-------|----------------------|----------|----------|--------|
+| B1 | OpenCode browser, submit `form.bias-form` | Divider 12 V / 100 / 22 / 2.2 / 1 kΩ, β=100 | IC 1.230 mA · VCE 8.052 V · Forward Active | พบข้อความ `8.052` และ `Forward Active` บนหน้าเว็บ | `browser.find` หลัง submit จริง | **PASS** |
+| B2 | Run DC `.op` กับ ngspice จริง | reference fixture | VB/VE/VC/VCE/IC จาก log/raw จริง | ไม่ได้รัน เพราะไม่มี ngspice | — | **NOT RUN** |
+| B3 | เปลี่ยน RE แล้วรันซ้ำ | RE อื่น | Operating point เปลี่ยน | ไม่มี engine ให้รัน; มี unit test ตรวจ RE=0 ถูกปฏิเสธและ netlist ใช้ค่าที่ตรวจแล้ว | `test_rejects_zero_emitter_resistor`, `test_dc_uses_op...` | **NOT RUN** (real run) |
+| B4 | Run AC + look at Bode | 10 mV / 1 kHz, sweep 10 Hz–1 MHz | แกน Frequency/Gain(dB)/Phase(deg) มีหน่วยและข้อมูลจริง | ไม่มี raw จริง; parser ถูกทดสอบด้วย complex synthetic raw (gain 10, phase ≈180°) | `test_parse_ac_complex_gain_and_phase` | **NOT RUN** (real run) |
+| B5 | Run `.tran` | 10 mV peak, 1 kHz | Vin/Vout vs time, กลับเฟส | ไม่มี raw จริง; parser/summary ทดสอบด้วย synthetic real raw | `test_parse_transient_points` | **NOT RUN** (real run) |
+| B6 | เปลี่ยน amplitude/frequency แล้วรันซ้ำ | source ใหม่ | wave เปลี่ยนตาม input | ไม่มี engine ให้รัน; validation ทดสอบ amplitude/frequency ผิดแล้วถูกปฏิเสธ | `test_rejects_bad_source_values` | **NOT RUN** (real run) |
+| B7 | Browser submit ฟอร์ม simulator | `sim_re = 0` | แจ้ง error ไม่ค้าง ไม่โชว์ผลสำเร็จ | เห็น `sim_re: ต้องมากกว่า 0` และไม่มี `#sim-results` | `browser.find` หลัง submit จริง | **PASS** |
+| B7b | Browser submit ค่าถูกแต่ไม่มี engine | RE กลับเป็น 1 kΩ | แจ้ง error ไม่ส่งผลปลอม | เห็น `Simulation failed` · `ไม่พบ ngspice — ตรวจ PATH หรือตั้งค่า NGSPICE_PATH แล้วลองใหม่` ไม่มี `#sim-results` | `browser.find` + [`screenshot`](screenshots/lab04-engine-error-desktop.png) | **PASS** |
+| B8 | Desktop viewport ~1280 px | เปิดหน้าเว็บ + เปลี่ยนโหมด | ปุ่ม/ฟอร์ม/ข้อความอ่านได้ ไม่ตัด | ฟอร์ม Lab 03 และ `#simulator` แสดงครบ, button `Run Simulation` เห็นชัด | screenshot ด้านบน | **PASS** (desktop) |
+| B8 | Mobile viewport ~390 px | — | กราฟ/หน่วย/ปุ่มอ่านง่าย | เครื่องนี้ไม่มี tool ปรับ viewport → ไม่ได้ตรวจ | — | **NOT RUN** (mobile) |
+
+## หมายเหตุความถูกต้อง
+
+- หน้าเว็บจะแสดง `#sim-results` เฉพาะเมื่อ `SimulationResult.ok == True` ซึ่งเกิดขึ้น
+  หลังอ่าน `run.raw` ที่มีข้อมูลจริงเท่านั้น; ทุกเส้นทาง error คืน status 400/503
+  และไม่มีตารางผล/กราฟเก่า
+- `subprocess.run` ได้ argument เป็น **list**, ไม่มี `shell=True`, มี `timeout=30`
+  และแยก `TemporaryDirectory` ต่อหนึ่งรัน (ตรวจโดย `test_subprocess_is_list_no_shell_with_timeout`)
+- ฟอร์มตรวจตัวเลข/finite/ช่วงก่อนสร้าง netlist ชื่อโมเดลถูกจำกัดด้วย regex
+  (ตรวจ `test_rejects_injection_into_model_name`) → ข้อความจากฟอร์มไม่ต่อเข้า command
+- เมื่อติดตั้ง ngspice แล้ว ให้รัน `python -m flask --app app run`,
+  เปิด <http://127.0.0.1:5000/> กด **Run Simulation** ในแต่ละโหมด แล้วอัปเดต
+  B2–B6 จาก log/raw จริงก่อนส่งงาน — ตัวเลข gain/cutoff ต้องมาจากรันนั้น
+- f3dB จะแสดงข้อความ `not determined in sweep range` ถ้าไม่มีจุด −3 dB ในช่วง sweep
+  (ไม่สร้างตัวเลขขึ้นเอง)

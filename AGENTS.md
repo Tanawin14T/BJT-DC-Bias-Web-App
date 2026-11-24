@@ -7,12 +7,23 @@
 - `app.py` ทำหน้าที่ HTTP: อ่าน `request.form`, เรียก `parse_inputs`/`calculate`,
   เลือก status code, render template
 - `templates/index.html` แสดงผลเท่านั้น — ห้ามมีตัวเลขผลลัพธ์แบบ hardcode
+- `spice_engine.py` เป็น adapter เดียวของ ngspice (Lab 04): validate → สร้าง netlist →
+  `subprocess.run` → อ่าน `run.raw` ต้องใช้ argument เป็น list, ไม่ `shell=True`,
+  มี `timeout`, แยก temp dir ต่อรัน และคืน error เมื่อ engine/run/output ไม่พร้อม
+  (ห้ามคืนผลสำเร็จหรือกราฟเก่าในเส้นทาง error)
+- `plots.py` แปลงข้อมูลที่ parse แล้วเป็น SVG พร้อมแกนและหน่วย — browser/app.py
+  ห้ามคำนวณแกนฟิสิกส์ใหม่หรือใส่จุดกราฟเอง
+- ผล SPICE กับผล Analytical (`dc_bias.py`) ต้องแยกป้ายที่มาชัดเจน ไม่บังคับให้ตัวเลขเท่ากัน
+  เพราะสมมติฐานโมเดลต่างกัน
 
 ## หน่วย
 
 - อินพุตตัวต้านทานเป็น **kΩ** ที่ขอบนอก (ฟอร์ม, label, test)
 - แปลงเป็น **Ω** ด้วย `KOHM_TO_OHM` ภายใน `dc_bias.py` จุดเดียว
 - ผลลัพธ์แสดง V, mA, µA, kΩ ตามที่ template กำหนด
+- อินพุต simulator: R เป็น kΩ, C เป็น µF, source amplitude เป็น V peak,
+  frequency/fstart/fstop เป็น Hz, stop time เป็น ms — แปลงหน่วยใน `spice_engine.py`
+  ก่อนเขียน netlist (`s`, `u` ตามสัญลักษณ์ SPICE)
 
 ## การทดสอบ
 
@@ -21,6 +32,9 @@
   เปลี่ยนค่าอ้างอิง) — ถ้าผลเปลี่ยนเพราะฟิสิกส์เปลี่ยน ให้แก้ `docs/validation.md`
   และค่าอ้างอิงพร้อมกันอย่างมีเหตุผล
 - test ใหม่ต้องเห็น fail ก่อนเขียน implementation
+- test ของ adapter ต้องรันได้โดยไม่มี ngspice (ใช้ raw สังเคราะห์ + mock subprocess)
+  และห้ามอ้างว่าผลสังเคราะห์เป็นผลจำลองจริง — สถานะ NOT RUN ต้องถูกบันทึกใน
+  `docs/validation.md` เมื่อไม่ได้รัน engine จริง
 
 ## Git
 
