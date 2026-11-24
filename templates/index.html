@@ -107,6 +107,7 @@
     <p class="sub">Voltage-divider NPN common-emitter reference circuit · DC / AC / Transient from a real SPICE run.</p>
 
     <form id="sim-form" class="sim-form" method="post" action="/simulate" novalidate>
+      <input type="hidden" name="lab_mode" value="{{ mode }}">
       <label>Analysis mode
         <select id="analysis" name="analysis">
           {% for key, label in analysis_modes.items() %}

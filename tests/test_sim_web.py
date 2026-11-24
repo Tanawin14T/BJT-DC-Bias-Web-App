@@ -43,10 +43,16 @@ class TestSimulatorPage(unittest.TestCase):
 
     def test_index_exposes_simulator_form(self):
         body = self.client.get("/").get_data(as_text=True)
-        for name in ("analysis", "sim_re", "sim_rl", "amplitude", "frequency"):
+        for name in ("analysis", "sim_re", "sim_rl", "amplitude", "frequency", "lab_mode"):
             self.assertIn(f'name="{name}"', body)
         for label in ("Run Simulation", "ngspice", "Common-Emitter", "DC Bias"):
             self.assertIn(label, body)
+
+    def test_simulate_preserves_lab_mode(self):
+        with patch("app.run_simulation", return_value=success_result()):
+            res = self.client.post("/simulate", data=dict(VALID_SIM, lab_mode="fixed"))
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('data-mode="fixed"', res.get_data(as_text=True))
 
     def test_simulate_success_renders_real_result_markers(self):
         with patch("app.run_simulation", return_value=success_result()):
