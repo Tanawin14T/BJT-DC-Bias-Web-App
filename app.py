@@ -12,6 +12,14 @@ from dc_bias import (
     calculate,
     parse_inputs,
 )
+from plots import ac_plot, tran_plot
+from spice_engine import (
+    ANALYSIS_MODES,
+    BJT_MODEL_NAME,
+    DEFAULT_SIM_FORM,
+    run_simulation,
+    validate_inputs,
+)
 
 app = Flask(__name__)
 
@@ -60,7 +68,9 @@ def _as_kohm(form: dict[str, str]) -> dict[str, str]:
     return data
 
 
-def _render(mode: str, form: dict[str, str], errors: dict[str, str], result, status: int = 200):
+def _render(mode: str, form: dict[str, str], errors: dict[str, str], result, status: int = 200,
+            *, sim_form=None, sim_errors=None, sim_result=None, analysis="dc",
+            bode_svg="", wave_svg=""):
     return render_template(
         "index.html",
         mode=mode,
@@ -72,6 +82,14 @@ def _render(mode: str, form: dict[str, str], errors: dict[str, str], result, sta
         form=form,
         errors=errors,
         result=result,
+        sim_form=sim_form if sim_form is not None else dict(DEFAULT_SIM_FORM),
+        sim_errors=sim_errors or {},
+        sim_result=sim_result,
+        analysis_modes=ANALYSIS_MODES,
+        analysis=analysis,
+        bjt_model=BJT_MODEL_NAME,
+        bode_svg=bode_svg,
+        wave_svg=wave_svg,
     ), status
 
 
@@ -98,6 +116,42 @@ def calculate_route():
     if errors:
         return _render(raw_mode, form, errors, None, 400)
     return _render(raw_mode, form, {}, calculate(inp))
+
+
+@app.post("/simulate")
+def simulate_route():
+    """Validate the CE form, run ngspice through the adapter, render its data."""
+    sim_form = {
+        key: (request.form.get(key) or default).strip()
+        for key, default in DEFAULT_SIM_FORM.items()
+    }
+    analysis = sim_form["analysis"]
+    lab_mode = request.form.get("lab_mode", DEFAULT_MODE)
+    if lab_mode not in MODE_LABELS:
+        lab_mode = DEFAULT_MODE
+    bias_form = _form_values(request.form)
+
+    inp, errors = validate_inputs(sim_form)
+    if errors:
+        return _render(
+            lab_mode, bias_form, {}, None, 400,
+            sim_form=sim_form, sim_errors=errors, analysis=analysis,
+        )
+
+    result = run_simulation(sim_form)
+    if not result.ok:
+        return _render(
+            lab_mode, bias_form, {}, None, 400 if result.errors else 503,
+            sim_form=sim_form, sim_errors=result.errors, sim_result=result,
+            analysis=result.analysis,
+        )
+
+    return _render(
+        lab_mode, bias_form, {}, None, 200,
+        sim_form=sim_form, sim_result=result, analysis=result.analysis,
+        bode_svg=ac_plot(result.ac) if result.ac else "",
+        wave_svg=tran_plot(result.tran) if result.tran else "",
+    )
 
 
 if __name__ == "__main__":

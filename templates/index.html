@@ -27,7 +27,7 @@
     <p class="sub">Common-Emitter · Fixed / Emitter / Voltage-Divider Bias · Forward-Active model (β คงที่, V<sub>BE</sub> คงที่)</p>
   </header>
 
-  <form method="post" action="/calculate" novalidate>
+  <form class="bias-form" method="post" action="/calculate" novalidate>
     <div class="mode-bar">
       <label class="mode-label" for="mode">วงจรไบอัส</label>
       <select id="mode" name="mode" onchange="this.form.submit()">
@@ -101,7 +101,125 @@
       <p class="note">ผลนี้มาจากแบบจำลอง Forward-Active ไม่ใช่การจำลอง SPICE — ใช้ตรวจงานออกแบบเบื้องต้นเท่านั้น</p>
     </section>
   {% endif %}
+  <section class="panel simulator" id="simulator" aria-labelledby="sim-title">
+    <p class="eyebrow">ENG29 2121 · Lab 04</p>
+    <h2 id="sim-title">CE Amplifier Simulator <span class="engine-badge">ngspice</span></h2>
+    <p class="sub">Voltage-divider NPN common-emitter reference circuit · DC / AC / Transient from a real SPICE run.</p>
+
+    <form id="sim-form" class="sim-form" method="post" action="/simulate" novalidate>
+      <label>Analysis mode
+        <select id="analysis" name="analysis">
+          {% for key, label in analysis_modes.items() %}
+            <option value="{{ key }}" {% if key == analysis %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="sim-grid">
+        <label>VCC (V)<input type="text" inputmode="decimal" name="sim_vcc" value="{{ sim_form.sim_vcc }}"></label>
+        <label>R1 (kΩ)<input type="text" inputmode="decimal" name="sim_r1" value="{{ sim_form.sim_r1 }}"></label>
+        <label>R2 (kΩ)<input type="text" inputmode="decimal" name="sim_r2" value="{{ sim_form.sim_r2 }}"></label>
+        <label>RC (kΩ)<input type="text" inputmode="decimal" name="sim_rc" value="{{ sim_form.sim_rc }}"></label>
+        <label>RE (kΩ)<input type="text" inputmode="decimal" name="sim_re" value="{{ sim_form.sim_re }}"></label>
+        <label>RL (kΩ)<input type="text" inputmode="decimal" name="sim_rl" value="{{ sim_form.sim_rl }}"></label>
+        <label>Cin (µF)<input type="text" inputmode="decimal" name="sim_cin" value="{{ sim_form.sim_cin }}"></label>
+        <label>Cout (µF)<input type="text" inputmode="decimal" name="sim_cout" value="{{ sim_form.sim_cout }}"></label>
+        <label>Amplitude (V peak)<input type="text" inputmode="decimal" name="amplitude" value="{{ sim_form.amplitude }}"></label>
+        <label>Frequency (Hz)<input type="text" inputmode="decimal" name="frequency" value="{{ sim_form.frequency }}"></label>
+        <label>f start (Hz)<input type="text" inputmode="decimal" name="fstart" value="{{ sim_form.fstart }}"></label>
+        <label>f stop (Hz)<input type="text" inputmode="decimal" name="fstop" value="{{ sim_form.fstop }}"></label>
+        <label>AC points<input type="text" inputmode="numeric" name="ac_points" value="{{ sim_form.ac_points }}"></label>
+        <label>Stop time (ms)<input type="text" inputmode="decimal" name="tran_stop" value="{{ sim_form.tran_stop }}"></label>
+        <label>BJT model name<input type="text" name="model" value="{{ sim_form.model }}" aria-describedby="model-help"></label>
+      </div>
+      <p class="note" id="model-help">โมเดลเริ่มต้น <code>{{ bjt_model }}</code> เป็น generic NPN deck ที่ระบุพารามิเตอร์ใน <code>spice_engine.py</code> — ไม่ใช่การอ้างรุ่นทรานซิสเตอร์เฉพาะ</p>
+      <div class="actions"><button type="submit">Run Simulation</button></div>
+    </form>
+
+    {% if sim_errors %}
+      <div class="status bad" role="alert">
+        <strong>ข้อมูลไม่ถูกต้อง</strong>
+        <ul>
+          {% for field, message in sim_errors.items() %}<li>{{ field }}: {{ message }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if sim_result and not sim_result.ok %}
+      <div class="status bad" id="sim-error" role="alert">
+        <strong>Simulation failed</strong> · {{ sim_result.message }}
+        {% if sim_result.log %}<pre class="engine-log">{{ sim_result.log }}</pre>{% endif %}
+      </div>
+    {% endif %}
+
+    {% if sim_result and sim_result.ok %}
+    <div id="sim-results">
+      <p class="engine-status">
+        Engine: <strong>{{ sim_result.engine }}</strong> · Status: <strong>{{ sim_result.status }}</strong>
+        · Analysis: <strong>{{ sim_result.analysis }}</strong> · Model: <strong>{{ sim_result.model }}</strong>
+      </p>
+      <p class="notice-provenance">ผลด้านล่างอ่านจาก <code>run.raw</code> ที่ ngspice เขียนในการรันนี้ — ไม่ใช่ค่าจาก <code>dc_bias.py</code> และไม่ใช่กราฟตัวอย่าง</p>
+
+      {% if sim_result.op %}
+        {% set op = sim_result.op %}
+        <h3>DC Operating Point (.op)</h3>
+        <table>
+          <caption>SPICE operating point — voltage-divider CE</caption>
+          <thead><tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr></thead>
+          <tbody>
+            <tr><td>V<sub>B</sub> (vb)</td><td>{{ "%.3f"|format(op.vb) }}</td><td>V</td></tr>
+            <tr><td>V<sub>E</sub> (e)</td><td>{{ "%.3f"|format(op.ve) }}</td><td>V</td></tr>
+            <tr><td>V<sub>C</sub> (c)</td><td>{{ "%.3f"|format(op.vc) }}</td><td>V</td></tr>
+            <tr><td>V<sub>CE</sub> = V<sub>C</sub> − V<sub>E</sub></td><td>{{ "%.3f"|format(op.vce) }}</td><td>V</td></tr>
+            <tr><td>I<sub>C</sub> (probe VIC)</td><td>{{ "%.3f"|format(op.ic_ma) }}</td><td>mA</td></tr>
+          </tbody>
+        </table>
+      {% endif %}
+
+      {% if sim_result.ac %}
+        <h3>Bode Plot — Gain &amp; Phase from ngspice</h3>
+        <p class="note">Gain = |V<sub>out</sub>(out)/V<sub>in</sub>(vb)| · ความถี่สเกล log · วัด Vin ที่ฐานหลัง C<sub>in</sub> และ Vout ที่ RL หลัง C<sub>out</sub></p>
+        <div class="plot">{{ bode_svg|safe }}</div>
+        <table>
+          <caption>AC samples (first 8 of {{ sim_result.ac|length }} points)</caption>
+          <thead><tr><th>Frequency (Hz)</th><th>Gain |Vout/Vin|</th><th>Phase (deg)</th></tr></thead>
+          <tbody>
+            {% for p in sim_result.ac[:8] %}
+              <tr><td>{{ "%.3e"|format(p.frequency_hz) }}</td><td>{{ "%.2f"|format(p.gain) }}</td><td>{{ "%.1f"|format(p.phase_deg) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% set acs = sim_result.ac_summary %}
+        <p class="note">Gain สูงสุด {{ "%.2f"|format(acs.max_gain) }} ที่ {{ "%.3e"|format(acs.f_at_max_gain) }} Hz ·
+          f<sub>3dB</sub>:
+          {% if acs.f_3db %}{{ "%.3e"|format(acs.f_3db) }} Hz{% else %}not determined in sweep range{% endif %}
+        </p>
+      {% endif %}
+
+      {% if sim_result.tran %}
+        <h3>Transient Waveforms (.tran)</h3>
+        <div class="plot">{{ wave_svg|safe }}</div>
+        {% set ts = sim_result.tran_summary %}
+        <table>
+          <caption>Transient summary from parsed samples</caption>
+          <thead><tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย / หมายเหตุ</th></tr></thead>
+          <tbody>
+            <tr><td>V<sub>in</sub> peak (vb)</td><td>{{ "%.3g"|format(ts.vin_peak_v) }}</td><td>V</td></tr>
+            <tr><td>V<sub>out</sub> peak (out)</td><td>{{ "%.3g"|format(ts.vout_peak_v) }}</td><td>V</td></tr>
+            <tr><td>Gain estimate</td><td>{% if ts.gain_estimate %}{{ "%.2f"|format(ts.gain_estimate) }}{% else %}n/a{% endif %}</td><td>Vout/Vin (peak)</td></tr>
+            <tr><td>Phase relation</td><td>{{ ts.phase_note }}</td><td>covariance of samples</td></tr>
+          </tbody>
+        </table>
+      {% endif %}
+
+      <details>
+        <summary>NETLIST และ ngspice log จากรันนี้</summary>
+        <h4>circuit.cir</h4><pre>{{ sim_result.netlist }}</pre>
+        <h4>run.log</h4><pre>{{ sim_result.log or "(log ว่าง)" }}</pre>
+      </details>
+    </div>
+    {% endif %}
+  </section>
 </main>
-<footer>ENG29 2121 · Lab 03 · Flask + Python backend</footer>
+<footer>ENG29 2121 · Lab 03 DC Bias + Lab 04 CE Simulator · Flask + Python backend</footer>
 </body>
 </html>
