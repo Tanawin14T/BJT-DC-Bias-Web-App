@@ -207,6 +207,10 @@ python -m unittest discover -s tests
 
 B8 ใช้ **OpenCode Browser Tool** เพราะ Playwright MCP ไม่มีใน session: desktop เป็นแท็บเบราว์เซอร์จริง ส่วน "phone" คือ iframe กว้าง 390 px (มี scrollbar → `clientW=375`) **ไม่ใช่ device emulation ของ Playwright**; ภาพทั้ง 6 เป็น screenshot จริงของหน้า Flask หลังเปลี่ยนโหมดและรัน AC แล้ว
 
+**มุมมองจริง (viewport ไม่ใช่ full-page):** ถ่ายหลังสลับเป็น fixed + Run AC แล้วเลื่อนไปที่ `#sim-results`
+- [`desktop 1000×700`](screenshots/lab04-b8-view-desktop.png) · [`phone 390×700`](screenshots/lab04-b8-view-phone.png) · [`ภาพเทียบ 2 ขนาดจอ`](screenshots/lab04-b8-view-compare.png)
+- ทั้ง 2 มุมมองเห็นแกน/หน่วย `Frequency (Hz)`, `Gain (dB)`, `Phase (deg)` และปุ่ม `Run Simulation` โดยไม่มีเนื้อหาสำคัญถูกตัด
+
 หมายเหตุ B4/B5/B6: netlist ใน `spice_engine.py` เป็น **voltage-divider CE reference circuit** เพียง deck เดียว (R1/R2/RC/RE/RL/Cin/Cout) — ตัวเลือก Fixed/Emitter/Divider ของ Lab 03 เป็นคนละส่วนกับ simulator และไม่เปลี่ยนโทโพโลยี SPICE ดังนั้น Bode (B4) และ waveform (B5/B6) ของทั้ง 3 โหมดต้องเท่ากันโดยออกแบบ ไม่ใช่กราฟ hard-code หรือผลที่ copy ใส่; ทุกกราฟมาจาก `run.raw` ของรันจริงในแต่ละแท็บ (engine `ngspice_con.exe`, Status `success`, Model `QCE_GENERIC`) B6 เปลี่ยน source จริงจึงได้ waveform ใหม่ตาม `SIN(0 0.02 2000)` ที่ปรากฏใน NETLIST ของแต่ละรัน
 
 ## หมายเหตุความถูกต้อง
