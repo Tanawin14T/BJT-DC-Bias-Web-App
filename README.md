@@ -60,7 +60,7 @@ python -m flask --app app run --debug
 python -m unittest discover -s tests -v
 ```
 
-ผลที่คาดหวัง: 35 tests ผ่านทั้งหมด (13 tests Lab 2/3 เดิม + 22 tests ของ SPICE adapter/web)
+ผลที่คาดหวัง: 39 tests ผ่านทั้งหมด (13 tests Lab 2/3 เดิม + 26 tests ของ SPICE adapter/web)
 
 ## ค่าตัวอย่างและผลอ้างอิง
 
@@ -105,7 +105,7 @@ VCC = 12 V, R1 = 100 kΩ, R2 = 22 kΩ, RC = 2.2 kΩ, RE = 1 kΩ, β = 100, VBE =
 |----------|--------|-----------|
 | DC | `.op` | VB, VE, VC, VCE, IC (อ่านจาก `v(vb)`, `v(e)`, `v(c)`, `i(vic)`) |
 | AC | `.ac dec N fstart fstop` | Bode: Gain = \|Vout(out)/Vin(vb)\| [dB], Phase [deg] พร้อม f3dB หรือข้อความว่าไม่พบในช่วง sweep |
-| Transient | `.tran stop step` | Vin(vb)/Vout(out) ตามเวลา [ms], peak, Gain estimate และทิศทางเฟส |
+| Transient | `.tran TSTEP TSTOP` (step ก่อน stop ตามไวยากรณ์ ngspice) | Vin(vb)/Vout(out) ตามเวลา [ms], AC amplitude (หัก DC), Gain estimate และทิศทางเฟส |
 
 **Input fixture ตั้งต้น:** VCC 12 V · R1 100 kΩ · R2 22 kΩ · RC 2.2 kΩ ·
 RE 1 kΩ · RL 10 kΩ · Cin = Cout = 10 µF · source 10 mV peak @ 1 kHz ·
@@ -120,19 +120,20 @@ BJT model `QCE_GENERIC` = `NPN(IS=1E-14 BF=200 VAF=100 RB=10 CJC=3.5P CJE=8P TF=
 หาก ngspice หาย, รันfailed, timeout หรือ raw ว่าง หน้าเว็บจะแสดง error และจะไม่แสดง
 กราฟ/ผลสำเร็จปลอม
 
-**ข้อจำกัดในสภาพแวดล้อมที่พัฒนา:** เครื่องที่ใช้แก้โค้ดไม่มี `ngspice.exe`
-จึงทดสอบ adapter ด้วย raw file สังเคราะห์ใน `tests/test_spice_engine.py` และบันทึก
-B2–B6 ของการรันจริงเป็น `NOT RUN` ใน [`docs/validation.md`](docs/validation.md)
-อย่างตรงไปตรงมา หลังติดตั้ง ngspice ผู้ใช้สามารถรันคำสั่งด้านบนแล้วกด
-**Run Simulation** เพื่อดูผลจริงได้ทันที
+**สถานะเครื่องที่ใช้ตรวจ:** ติดตั้ง ngspice-47 (console) แล้วที่
+`C:\Users\B6808778\AppData\Local\ngspice-47\Spice64\bin\ngspice_con.exe` และตั้ง
+`NGSPICE_PATH` ระดับผู้ใช้; รัน DC/AC/Transient จริงผ่านหน้าเว็บแล้ว ดูผล B1–B8
+พร้อม screenshot และข้อความ error ก่อนติดตั้ง engine ได้ใน
+[`docs/validation.md`](docs/validation.md) (Playwright MCP ไม่มีใน session นี้
+จึงบันทึก NOT RUN และใช้ OpenCode Browser Tool แทน — ไม่ได้อ้างว่าเป็น Playwright)
 
 ## สิ่งที่ AI แก้ vs สิ่งที่ตรวจเอง
 
 - AI (OpenCode) เพิ่ม `spice_engine.py`, `plots.py`, route `/simulate`, UI และ tests
   ตามข้อกำหนด Lab 04 โดยคง `dc_bias.py`, ฟอร์ม Lab 03 และ tests เดิมไว้ครบ
-- ผู้ใช้ตรวจ/อนุมัติขอบเขตงาน เลือกแนวทาง "adapter + NOT RUN" เมื่อไม่มี ngspice
-  และยืนยันให้ commit/push ขึ้น `main`
+- ผู้ใช้ตรวจ/อนุมัติขอบเขตงาน เลือกแนวทาง "adapter + NOT RUN" เมื่อยังไม่มี ngspice
+  และยืนยันให้ commit/push ขึ้น `main`; หลังติดตั้ง engine จึงอัปเดตผลเป็น B1–B8
 - ผลคำนวณ Lab 03 เทียบมือแล้วใน `docs/validation.md`; หน้าเว็บตรวจใน browser จริง
-  (B1, B7, engine-missing) จากนั้นดูผลการรันจริงในเครื่องที่มี ngspice
+  ทั้ง error path (ก่อนมี engine) และรัน DC/AC/Transient จริงหลังติดตั้ง ngspice-47
 - หลักฐาน status และ screenshot อยู่ใน `docs/validation.md` และ
   `docs/screenshots/lab04-engine-error-desktop.png`
