@@ -60,7 +60,7 @@ python -m flask --app app run --debug
 python -m unittest discover -s tests -v
 ```
 
-ผลที่คาดหวัง: 39 tests ผ่านทั้งหมด (13 tests Lab 2/3 เดิม + 26 tests ของ SPICE adapter/web)
+ผลที่คาดหวัง: 40 tests ผ่านทั้งหมด (13 tests Lab 2/3 เดิม + 27 tests ของ SPICE adapter/web)
 
 ## ค่าตัวอย่างและผลอ้างอิง
 
@@ -123,7 +123,7 @@ BJT model `QCE_GENERIC` = `NPN(IS=1E-14 BF=200 VAF=100 RB=10 CJC=3.5P CJE=8P TF=
 **สถานะเครื่องที่ใช้ตรวจ:** ติดตั้ง ngspice-47 (console) แล้วที่
 `C:\Users\B6808778\AppData\Local\ngspice-47\Spice64\bin\ngspice_con.exe` และตั้ง
 `NGSPICE_PATH` ระดับผู้ใช้; รัน DC/AC/Transient จริงผ่านหน้าเว็บแล้ว ดูผล B1–B8
-พร้อม screenshot และข้อความ error ก่อนติดตั้ง engine ได้ใน
+(รวม B8 desktop + narrow iframe 390 px) พร้อม screenshot และข้อความ error ก่อนติดตั้ง engine ได้ใน
 [`docs/validation.md`](docs/validation.md) (Playwright MCP ไม่มีใน session นี้
 จึงบันทึก NOT RUN และใช้ OpenCode Browser Tool แทน — ไม่ได้อ้างว่าเป็น Playwright)
 

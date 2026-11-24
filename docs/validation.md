@@ -170,11 +170,12 @@ IC = 0.940100 mA · VE = 1.89900 V · VCE = 9.93178 − 1.89900 = 8.03278 V
 
 ```
 python -m unittest discover -s tests
-→ Ran 39 tests ... OK
+→ Ran 40 tests ... OK
 ```
 
-13 tests เดิม + 26 tests ของ adapter/web รวมถึง raw จริงของ ngspice-47
-(ค่าต่อบรรทัด), `.tran TSTEP TSTOP`, และ gain ที่หัก DC offset ออก
+13 tests เดิม + 27 tests ของ adapter/web รวมถึง raw จริงของ ngspice-47
+(ค่าต่อบรรทัด), `.tran TSTEP TSTOP`, gain ที่หัก DC offset และ hidden `lab_mode`
+ที่ทำให้โหมด Lab 03 ค้างอยู่หลังรัน simulator
 
 ## ตาราง B1–B8 (OpenCode Browser Tool, หน้า Flask จริง)
 
@@ -187,8 +188,8 @@ python -m unittest discover -s tests
 | B5 | Run `.tran` | 10 mV peak, 1 kHz, 5 ms | แกน `Time (ms)` / `Voltage (V)`; Vin AC **0.01 V**, Vout AC **0.0176 V**, gain **1.76**, `กลับเฟส (~180°)` (covariance) | [`b5`](screenshots/lab04-b5-transient.png) | **PASS** |
 | B6 | เปลี่ยน source แล้ว run ซ้ำ | 20 mV peak, 2 kHz | Vin AC **0.0199 V**, Vout AC **0.0351 V** — waveform/ค่าจากรันใหม่ ไม่ใช่กราฟ hard-code; gain ยัง ~1.76 | [`b6`](screenshots/lab04-b6-change-source.png) เทียบ B5 | **PASS** |
 | B7 | ใส่ RE=0 แล้ว submit | `sim_re = 0` | เห็น `ข้อมูลไม่ถูกต้อง sim_re: ต้องมากกว่า 0`, HTTP 400, **ไม่มี** `#sim-results` | [`b7`](screenshots/lab04-b7-invalid.png) | **PASS** |
-| B8 | เปิด desktop + สลับโหมด | viewport ~1280 px | ฟอร์ม Lab 03, `#simulator`, ปุ่ม `Run Simulation`, หน่วย/กราฟอ่านได้ ไม่ตัด; สลับไป fixed สำเร็จ | [`b8`](screenshots/lab04-b8-ui-desktop.png) | **PASS** (desktop) |
-| B8 | Mobile viewport ~390 px | — | ควรตรวจกราฟ/ปุ่มบนจอเล็ก | Browser Tool ไม่มีคำสั่งปรับ viewport/device emulation → **NOT RUN** (mobile) | ใช้ CSS `@media (max-width:560px)` แทน; ยังไม่มีหลักฐานจอเล็ก | **NOT RUN** |
+| B8 | เปิด desktop + สลับโหมด แล้ว Run AC | viewport 1333 px (`clientW` 1313) | `mode=fixed` ค้างหลังรัน (`hidden lab_mode`), `matchMedia(max-width:560px)=false`, `scrollWidth==clientWidth` ไม่มี horizontal cut; ปุ่ม 14/16 px อยู่ในจอ; SVG 918.7 px พร้อมแกน `Frequency (Hz)`, `Gain (dB)`, `Phase (deg)` | [`b8-desktop`](screenshots/lab04-b8-ui-desktop.png) | **PASS** (desktop) |
+| B8 | iframe กว้าง 390 px ใน Browser Tool + สลับโหมด แล้ว Run AC | `innerW=390`, `clientW=375`, `matchMedia(max-width:560px)=true` | `mode=fixed`, `scrollWidth==clientWidth` ไม่มี horizontal cut; `.plot svg` เหลือ 307 px (`min-width:0`), ปุ่ม `Run Simulation` right=331 px; แกน/หน่วยเหมือน desktop | [`b8-mobile`](screenshots/lab04-b8-ui-mobile.png) — ครอปจาก iframe จริง ไม่ใช่ device emulation หรือ Playwright MCP | **PASS** (narrow viewport) |
 | Playwright MCP | ทุก case ตามใบงาน Lab 3 | — | ต้องเห็น tool ก่อนเริ่ม | ไม่พบ Playwright MCP ใน session นี้ → ใช้ OpenCode Browser Tool แทนตามเงื่อนไขที่อนุญาต | — | **NOT RUN** |
 
 ## หมายเหตุความถูกต้อง
