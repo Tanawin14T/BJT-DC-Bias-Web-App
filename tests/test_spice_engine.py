@@ -105,6 +105,17 @@ class TestNetlist(unittest.TestCase):
         self.assertIn(".tran", netlist)
         self.assertIn("SIN(0 0.01 1000", netlist)
 
+    def test_transient_step_resolves_1khz_sine(self):
+        inp, _ = se.validate_inputs(dict(GOOD, analysis="transient", tran_stop="5"))
+        directive = next(line for line in se.build_netlist(inp).splitlines()
+                         if line.startswith(".tran"))
+        # ngspice syntax is .tran TSTEP TSTOP (step first, stop second).
+        _, step, stop = directive.split()
+        self.assertAlmostEqual(float(stop), 0.005)
+        # <= 50 us gives at least 20 samples per 1 kHz period, so the measured
+        # AC amplitude is not an artefact of an undersampled sine.
+        self.assertLessEqual(float(step), 50e-6)
+
 
 class TestRawParsing(unittest.TestCase):
     def test_parse_op_values(self):
@@ -148,10 +159,80 @@ class TestRawParsing(unittest.TestCase):
         self.assertAlmostEqual(points[1].time_s, 0.001)
         self.assertTrue(se.tran_summary(points)["inverted"])
 
+    def test_transient_gain_ignores_dc_offset(self):
+        # vb sits at ~2 V DC while the AC-coupled output has ~0 V DC. A peak
+        # ratio taken from the raw voltages would wrongly report ~0.01 gain.
+        # Four quarter-period samples repeat symmetrically, so the mean is
+        # exactly the DC level and the physical peak is exactly 10 mV / 100 mV.
+        points = [
+            se.TranPoint(t, 2.0 + vin, vout)
+            for t, vin, vout in [
+                (0.0, 0.0, 0.0),
+                (0.00025, 0.01, -0.1),
+                (0.0005, 0.0, 0.0),
+                (0.00075, -0.01, 0.1),
+                (0.001, 0.0, 0.0),
+            ]
+        ]
+        summary = se.tran_summary(points)
+        self.assertAlmostEqual(summary["vin_peak_v"], 0.01, places=6)
+        self.assertAlmostEqual(summary["vout_peak_v"], 0.1, places=6)
+        self.assertAlmostEqual(summary["gain_estimate"], 10.0, places=5)
+        self.assertTrue(summary["inverted"])
+
     def test_missing_variable_raises_engine_error(self):
         plot = se.parse_raw(raw_text("AC Analysis", "complex", ["frequency"], [["1,0"]]))
         with self.assertRaises(se.SpiceEngineError):
             se.extract_ac(plot)
+
+    def test_parse_real_ngspice_raw_one_value_per_line(self):
+        # ASCII raw from ngspice-47: the point index sits alone at the start of
+        # the first line, then ONE value per line (unlike our compact fixtures).
+        raw = "\n".join([
+            "Title: real ngspice raw",
+            "Plotname: Operating Point",
+            "Flags: real",
+            "No. Variables: 4",
+            "No. Points: 1",
+            "Variables:",
+            "\t0\tv(vb)\tvoltage",
+            "\t1\tv(e)\tvoltage",
+            "\t2\tv(c)\tvoltage",
+            "\t3\ti(vic)\tcurrent",
+            "Values:",
+            "0\t\t2.047611099469625e+00",
+            "\t1.385831956524021e+00",
+            "\t8.965361121787979e+00",
+            "\t1.379381308278194e-03",
+        ]) + "\n"
+        op = se.extract_op(se.parse_raw(raw))
+        self.assertAlmostEqual(op.vb, 2.047611099469625, places=9)
+        self.assertAlmostEqual(op.vce, 8.965361121787979 - 1.385831956524021, places=9)
+        self.assertAlmostEqual(op.ic_ma, 1.379381308278194, places=9)
+
+    def test_parse_real_ngspice_complex_raw_one_pair_per_line(self):
+        raw = "\n".join([
+            "Title: real ngspice raw",
+            "Plotname: AC Analysis",
+            "Flags: complex",
+            "No. Variables: 3",
+            "No. Points: 2",
+            "Variables:",
+            "\t0\tfrequency\tfrequency\tgrid=3",
+            "\t1\tv(vb)\tvoltage",
+            "\t2\tv(out)\tvoltage",
+            "Values:",
+            "0\t\t1.000000000000000e+01,0.000000000000000e+00",
+            "\t9.909116403787324e-03,9.492034238271518e-04",
+            "\t-1.693820946258750e-02,-3.880955753983664e-03",
+            "1\t\t1.122018454301963e+01,0.000000000000000e+00",
+            "\t9.927672741911094e-03,8.475607734498202e-04",
+            "\t-1.700000000000000e-02,-4.000000000000000e-03",
+        ]) + "\n"
+        points = se.extract_ac(se.parse_raw(raw))
+        self.assertEqual(len(points), 2)
+        self.assertAlmostEqual(points[0].frequency_hz, 10.0, places=6)
+        self.assertGreater(points[0].gain, 1.0)
 
 
 class TestFailureHandling(unittest.TestCase):

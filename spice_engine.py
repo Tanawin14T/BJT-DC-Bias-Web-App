@@ -226,7 +226,9 @@ def build_netlist(inp: SpiceInput) -> str:
                      f"{_plain_number(inp.fstart)} {_plain_number(inp.fstop)}")
     else:
         stop_s = inp.tran_stop / 1000.0
-        directive = f".tran {_plain_number(stop_s)} {_plain_number(stop_s / 10.0)}"
+        # ngspice order is .tran TSTEP TSTOP. 200 steps over the window gives
+        # >=20 samples per period at 1 kHz (an accurate measured amplitude).
+        directive = f".tran {_plain_number(stop_s / 200.0)} {_plain_number(stop_s)}"
 
     lines = [
         "* CE voltage-divider amplifier — Lab 04 (generated, not hand-edited)",
@@ -258,11 +260,17 @@ def _number(value: float | complex) -> float:
 
 
 def parse_raw(text: str) -> RawPlot:
-    """Parse ngspice ASCII raw output (real or complex) into arrays."""
+    """Parse ASCII raw output (real or complex) into arrays.
+
+    ngspice-47 writes one value per line (point index alone on the first line
+    of each row); compact fixtures with all values on one line are accepted
+    too. Both spellings of complex values, ``re,im`` and ``(re,im)``, are read.
+    """
     plotname = ""
     flags = ""
     variables: list[str] = []
-    rows: list[list[float | complex]] = []
+    declared = 0
+    tokens: list[str] = []
     section = ""
 
     for line in text.splitlines():
@@ -283,6 +291,11 @@ def parse_raw(text: str) -> RawPlot:
                     plotname = value.strip()
                 elif key == "flags":
                     flags = value.strip()
+                elif key == "no. variables":
+                    try:
+                        declared = int(value.strip())
+                    except ValueError:
+                        pass
             continue
         if section == "variables":
             parts = stripped.split()
@@ -291,38 +304,40 @@ def parse_raw(text: str) -> RawPlot:
             continue
         if section == "values":
             parts = stripped.split()
-            if not parts or not parts[0].isdigit():
-                continue
-            raw_values = parts[1:]
-            if "complex" in flags.lower():
-                row: list[float | complex] = []
-                i = 0
-                while i < len(raw_values):
-                    token = raw_values[i]
-                    if token.startswith("("):
-                        joined = token
-                        while ")" not in joined and i + 1 < len(raw_values):
-                            i += 1
-                            joined += raw_values[i]
-                        match = re.match(r"\(([^,]+),([^)]*)\)", joined)
-                        if not match:
-                            raise SpiceEngineError("ไม่สามารถอ่านค่ากราฟ AC จาก raw file ได้")
-                        row.append(complex(float(match.group(1)), float(match.group(2))))
-                    elif "," in token:  # e.g. 1.000e+03,0.0
-                        real, _, imag = token.partition(",")
-                        row.append(complex(float(real), float(imag)))
-                    else:
-                        if i + 1 >= len(raw_values):
-                            raise SpiceEngineError("ข้อมูล AC complex ไม่ครบคู่ real/imag")
-                        row.append(complex(float(token), float(raw_values[i + 1])))
-                        i += 1
-                    i += 1
-                rows.append(row)
-            else:
-                rows.append([float(token) for token in raw_values])
+            # Real ngspice puts a bare point index at the start of each row.
+            if parts and re.fullmatch(r"\d+", parts[0]):
+                parts = parts[1:]
+            tokens.extend(parts)
 
-    if not plotname or not variables or not rows:
+    if not plotname or not variables or not tokens:
         raise SpiceEngineError("raw file ไม่มีข้อมูลกราฟที่อ่านได้ (อาจรัน analysis ไม่สำเร็จ)")
+
+    count = declared or len(variables)
+    if "complex" in flags.lower():
+        values: list[float | complex] = []
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+            if token.startswith("(") or "," in token:
+                match = re.fullmatch(r"\(?\s*([^,()]+)\s*,\s*([^,()]+)\s*\)?", token)
+                if not match:
+                    raise SpiceEngineError("ไม่สามารถอ่านค่ากราฟ AC จาก raw file ได้")
+                values.append(complex(float(match.group(1)), float(match.group(2))))
+                i += 1
+            else:
+                if i + 1 >= len(tokens) or "," in tokens[i + 1]:
+                    raise SpiceEngineError("ข้อมูล AC complex ไม่ครบคู่ real/imag")
+                values.append(complex(float(token), float(tokens[i + 1])))
+                i += 2
+    else:
+        try:
+            values = [float(token) for token in tokens]
+        except ValueError as exc:
+            raise SpiceEngineError("raw file มีค่าที่ไม่ใช่ตัวเลข") from exc
+
+    if len(values) % count:
+        raise SpiceEngineError("raw file มีจำนวนค่ไม่ตรงกับ No. Variables")
+    rows = [values[i:i + count] for i in range(0, len(values), count)]
     return RawPlot(plotname=plotname, flags=flags, variables=variables, points=rows)
 
 
@@ -386,16 +401,19 @@ def ac_summary(points: list[AcPoint]) -> dict:
 
 
 def tran_summary(points: list[TranPoint]) -> dict:
-    vin_peak = max(abs(p.vin_v) for p in points)
-    vout_peak = max(abs(p.vout_v) for p in points)
     mean_in = sum(p.vin_v for p in points) / len(points)
     mean_out = sum(p.vout_v for p in points) / len(points)
+    # Measure AC amplitude about each node's DC level. vb carries the ~2 V
+    # operating point while out is AC-coupled; using raw peaks here would
+    # report a gain of ~0.01 instead of the actual small-signal gain.
+    vin_ac = max(abs(p.vin_v - mean_in) for p in points)
+    vout_ac = max(abs(p.vout_v - mean_out) for p in points)
     covariance = sum((p.vin_v - mean_in) * (p.vout_v - mean_out) for p in points)
     inverted = covariance < 0.0
     return {
-        "vin_peak_v": vin_peak,
-        "vout_peak_v": vout_peak,
-        "gain_estimate": vout_peak / vin_peak if vin_peak else None,
+        "vin_peak_v": vin_ac,
+        "vout_peak_v": vout_ac,
+        "gain_estimate": vout_ac / vin_ac if vin_ac else None,
         "inverted": inverted,
         "phase_note": "กลับเฟส (~180°)" if inverted else "ไม่กลับเฟสในช่วงที่วัด",
     }

@@ -203,9 +203,9 @@
           <caption>Transient summary from parsed samples</caption>
           <thead><tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย / หมายเหตุ</th></tr></thead>
           <tbody>
-            <tr><td>V<sub>in</sub> peak (vb)</td><td>{{ "%.3g"|format(ts.vin_peak_v) }}</td><td>V</td></tr>
-            <tr><td>V<sub>out</sub> peak (out)</td><td>{{ "%.3g"|format(ts.vout_peak_v) }}</td><td>V</td></tr>
-            <tr><td>Gain estimate</td><td>{% if ts.gain_estimate %}{{ "%.2f"|format(ts.gain_estimate) }}{% else %}n/a{% endif %}</td><td>Vout/Vin (peak)</td></tr>
+            <tr><td>V<sub>in</sub> AC amplitude (vb, DC removed)</td><td>{{ "%.3g"|format(ts.vin_peak_v) }}</td><td>V</td></tr>
+            <tr><td>V<sub>out</sub> AC amplitude (out, DC removed)</td><td>{{ "%.3g"|format(ts.vout_peak_v) }}</td><td>V</td></tr>
+            <tr><td>Gain estimate</td><td>{% if ts.gain_estimate %}{{ "%.2f"|format(ts.gain_estimate) }}{% else %}n/a{% endif %}</td><td>Vout/Vin (AC amplitude)</td></tr>
             <tr><td>Phase relation</td><td>{{ ts.phase_note }}</td><td>covariance of samples</td></tr>
           </tbody>
         </table>
